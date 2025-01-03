@@ -1,0 +1,39 @@
+title: Suspicious Mount Network Share Via Net Use
+description: Detects the usage of net use commands to identify domain users, adversaries can mount network share.
+author: nhilnt
+tags:
+  - attack.t1087.002
+  - attack.discovery
+date: 2024/12/28
+status: test
+reference:
+  - https://www.microsoft.com/en-us/security/blog/2022/06/13/the-many-lives-of-blackcat-ransomware/
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection_tpp1_1:
+    Image|endswith: '\net1.exe'
+  selection_tpp1_2:
+    OrginalFileName: 'net1.exe'
+  selection_tpp1_3:
+    Description: 'Net Command'
+  filter_exp1:
+    ParentImage|endswith: '\net.exe'
+  selection_tpp2_1:
+    Image|endswith: '\net.exe'
+  selection_tpp2_2:
+    OrginalFileName: 'net.exe'
+  filter_tcl:
+    CommandLine|contains|all:
+      - 'net'
+      - ' use '
+      - '\\'
+      - ' /u'
+  filter_exp2:
+    CommandLine|contains: ' /delete'
+  condition: ((1 of selection_tpp1* and not filter_exp1) or 1 of selection_tpp2*) and filter_tcl and not filter_exp2
+falsepositives:
+  - none
+level: medium

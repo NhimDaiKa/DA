@@ -1,0 +1,72 @@
+title: Suspicous VB Script Running
+description: Detects script file execution (.js, .jse, .vba, .vbe, .vbs, .wsf) by Wscript/Cscript.
+author: nhilnt
+tags:
+  - attack.t1059.005
+  - attack.t1059.007
+  - attack.execution
+date: 2024/12/28
+status: test
+reference:
+  - https://github.com/SigmaHQ/sigma/blob/22b3416feeb2cef891582b5e52bbc80a26b8b620/rules-threat-hunting/windows/process_creation/proc_creation_win_wscript_cscript_script_exec.yml
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    ParentImage|endswith:
+      - '\runtimebroker.exe'
+      - '\explorer.exe'
+      - '\cmd.exe'
+      - '\wscript.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+      - '\wmic.exe'
+      - '\mshta.exe'
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\powershell_ise.exe'
+      - '\wmiprvse.exe'
+      - '\wsmprovhost.exe'
+      - '\winrshost.exe'
+      - '\svchost.exe'
+      - '\cscript.exe'
+    Image|endswith:
+      - '\cscript.exe'
+      - '\wscript.exe'
+    CommandLine|contains:
+      - '.vbs'
+      - '.vbe'
+      - '.jse'
+      - '.hta'
+      - '.vba'
+      - '.wsf'
+  filter_exp:
+    CommandLine|contains:
+      - 'ospp.vbs'
+      - 'adobe_scan.vbs'
+      - 'slmgr.vbs'
+      - 'remove_office'
+      - 'health'
+      - 'win_ram_physicalsize.vbs'
+      - 'intel'
+      - 'checkupdate'
+      - 'screenon'
+      - 'nodejs'
+      - 'proplus.vbs'
+      - 'idt_audio_xp'
+      - 'startonpremiseserver.js'
+      - 'removemdc.vbs'
+      - 'gpoupdate.vbs'
+      - '\manageengine\adaudit plus_new\adaudit plus\bin\alertme.vbs'
+      - '\browserapp\browserapp.vbs'
+      - '\oracle\product'
+      - 'nmeo.vbs'
+      - '//nologo'
+      - 'calluxxprovider.vbs'
+      - 'Server Manager Performance Monitor'
+  condition: selection and not filter_exp
+falsepositives:
+  - none
+level: medium

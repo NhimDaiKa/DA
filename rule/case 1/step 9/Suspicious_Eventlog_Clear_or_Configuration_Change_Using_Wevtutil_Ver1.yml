@@ -1,0 +1,37 @@
+title: Suspicious Eventlog Clear or Configuration Change Using Wevtutil 
+description: Detects clearing or configuration of eventlogs using wevtutil, powershell and wmic. Might be used by ransomwares during the attack.
+author: nhilnt
+tags:
+  - attack.t1070.006
+  - attack.t1562.002
+  - attack.defense_evasion
+date: 2024/12/21
+status: test
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    Image|endswith: '\wevtutil.exe'
+  filter1:
+    CommandLine|contains:
+      - 'clear-log '
+      - ' cl '
+  filter2_1:
+    CommandLine|contains:
+      - 'set-log '
+      - ' sl '
+  filter2_2:
+    CommandLine|contains:
+      - '/e:false'
+      - '/ms:'
+      - 'lfn:'
+  exception:
+    ParentImage|endswith:
+      - '\syswow64\msiexec.exe'
+      - '\system32\msiexec.exe'
+  condition: selection and (filter1 or all of filter2*) and not exception
+falsepositives:
+  - none
+level: medium

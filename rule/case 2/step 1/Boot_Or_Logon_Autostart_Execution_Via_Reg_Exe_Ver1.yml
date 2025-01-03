@@ -1,0 +1,33 @@
+title: Boot Or Logon Autostart Execution Via Reg Exe
+description: Detects the usage of reg to achieve persistence, adversaries may cause the program referenced to be executed when a user logs in.
+author: nhilnt
+tags:
+    - attack.t1547.001
+    - attack.persistence
+date: 2024/12/25
+status: test
+reference:
+    - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1547.001/T1547.001.md#atomic-test-1---reg-key-run
+    - https://github.com/SigmaHQ/sigma/blob/cac07b8ecd07ffe729ed82dfa2082fdb6a1ceabc/rules/windows/process_creation/proc_creation_win_reg_add_run_key.yml
+logsource:
+    category: process_creation
+    product: windows
+    service: sysmon
+detection:
+    selection_tpp:
+      - Image|endswith: '\reg.exe'
+      - OriginalFileName: 'reg.exe'
+      - Description: 'Registry Console Tool'
+    selection_tcl:
+      CommandLine|contains|all: 
+        - ' add '
+        - 'software\microsoft\windows\currentversion\run'
+      CommandLine|contains:
+        - 'hklm'
+        - 'hkcu'
+        - 'hkey_local_machine'
+        - 'hkey_current_user'
+    condition: selection_tpp and selection_tcl
+falsepositives:
+    - Unknown
+level: medium

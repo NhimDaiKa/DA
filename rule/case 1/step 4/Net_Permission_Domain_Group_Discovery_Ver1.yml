@@ -1,0 +1,33 @@
+title: Net Permission Domain Group Discovery 
+description: Detects execution of Net.exe query for permission group about domain group information.
+author: nhilnt
+tags:
+  - attack.t1069.002
+  - attack.defense_evasion
+date: 2024/12/25
+status: test
+reference:
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1069.002/T1069.002.md#atomic-test-1---basic-permission-groups-discovery-windows-domain
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1069.002/T1069.002.md#atomic-test-3---elevated-group-enumeration-using-net-group-domain
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection_tpp1:
+    - Image|endswith: '\net1.exe'
+    - OrginalFileName: 'net1.exe'
+    - Description: 'Net Command'
+  filter_exp1:
+    ParentImage|endswith: \net.exe
+  selection_tpp2:
+    - Image|endswith: '\net.exe'
+    - OrginalFileName: 'net.exe'
+  filter_tcl:
+    CommandLine|contains|all:
+      - ' group'
+      - ' /do'
+  condition: ((selection_tpp1 and not filter_exp1) or selection_tpp2) and filter_tcl
+falsepositives:
+  - unknown
+level: medium

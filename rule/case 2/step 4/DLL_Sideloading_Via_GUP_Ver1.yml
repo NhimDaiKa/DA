@@ -1,0 +1,30 @@
+title: DLL Sideloading Via GUP
+description: Detects potential DLL sideloading of libcurl.dll by the gup.exe process.
+author: nhilnt
+tags:
+  - attack.t1547.001
+  - attack.t1547.002
+  - attack.persistence
+  - attack.defense_evasion
+date: 2024/12/25
+status: test
+reference:
+  - https://www.cybereason.co.jp/blog/threat-analysis-report/9489/
+logsource:
+  category: image_load
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    Image|endswith:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  '\gup.exe'
+    ImageLoaded|endswith: '\libcurl.dll'
+  filter1:
+    Signed: 'true'
+  filter_exp:
+    - OriginalFileName: 'libcurl.dll'
+    - Product: 'The curl library'
+    - Description: 'libcurl Shared Library'
+  condition: selection and not filter1 and not filter_exp
+falsepositives:
+  - unknown
+level: medium

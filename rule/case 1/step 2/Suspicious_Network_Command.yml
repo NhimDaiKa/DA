@@ -1,0 +1,27 @@
+title: Suspicious Network Command
+status: test
+description: Adversaries may look for details about the network configuration and settings of systems they access or through information discovery of remote systems
+references:
+    - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1016/T1016.md#atomic-test-1---system-network-configuration-discovery-on-windows
+author: nhilnt
+date: 2021/12/07
+modified: 2024/12/18
+tags:
+    - attack.discovery
+    - attack.t1016
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        CommandLine|contains:
+            - 'ipconfig /all'
+            - 'netsh interface show interface'
+            - 'arp -a'
+            - 'nbtstat -n'
+            - 'net config'
+            - 'route print'
+    condition: selection
+falsepositives:
+    - Administrator, hotline ask to user
+level: low

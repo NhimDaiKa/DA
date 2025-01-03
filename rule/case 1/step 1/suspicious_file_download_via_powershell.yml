@@ -1,0 +1,24 @@
+title: Suspicious File Download Via Powershell
+status: test
+description: Malware Download via Command Line
+author: nhilnt
+date: 2024/12/21
+tags:
+    - attack.command_and_control
+    - attack.execution
+    - attack.t1059.001
+    - attack.t1105
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection:
+        CommandLine|contains:
+            - '.DownloadString('
+            - '.DownloadFile('
+            - 'Invoke-WebRequest '
+            - 'iwr '
+    condition: selection
+falsepositives:
+    - Unknown
+level: medium

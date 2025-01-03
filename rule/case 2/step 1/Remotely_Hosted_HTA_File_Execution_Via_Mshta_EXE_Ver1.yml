@@ -1,0 +1,26 @@
+title: Remotely Hosted HTA File Execution Via Mshta EXE
+description: Detects execution of the mshta utility with an argument containing the http keyword, which could indicate that an attacker is executing a remotely hosted malicious hta file.
+author: nhilnt
+tags:
+  - attack.t1218.005
+  - attack.defense_evasion
+  - attack.execution
+date: 2024/12/25
+status: test
+reference:
+  - https://detection.fyi/sigmahq/sigma/windows/process_creation/proc_creation_win_mshta_http/?query=t1218.005
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    Image|endswith: '\mshta.exe'
+    CommandLine|contains:
+      - 'http:/'
+      - 'https:/'
+      - 'ftp:/'
+  condition: selection
+falsepositives:
+  - none
+level: high

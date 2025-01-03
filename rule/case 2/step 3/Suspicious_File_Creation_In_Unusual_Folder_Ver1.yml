@@ -1,0 +1,56 @@
+title: Suspicious File Creation In Unusual Folder
+description: Detects suspicious file created in unusual folder, adversaries may transfer tools or other files into a compromised environment.
+author: nhilnt
+tags:
+  - attack.t1570
+  - attack.t1105
+  - attack.command_and_control
+  - attack.lateral_movement
+date: 2024/12/25
+status: test
+reference:
+logsource:
+  category: file_event
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    EventID: "11"
+    Image|endswith:
+      - '\cmd.exe'
+      - '\powershell.exe'
+      - '\rundll32.exe'
+      - '\lsass.exe'
+  filter_path:
+    TargetFilename|contains:
+      - '\users\public\'
+      - '\appdata\roaming\'
+      - '\programdata\'
+      - '\windows\'
+  #filter_path2:
+    #TargetFilename|re:
+      #- ".*\\windows\\(system32|syswow64)\\[^\\]+$"
+      #- ".*\\windows\\[^\\]+$"
+  filter_ext:
+    TargetFilename|endswith:
+      - '.bat'
+      - '.cmd'
+      - '.com'
+      - '.dll'
+      - '.exe'
+      - '.hta'
+      - '.ocx'
+      - '.proj'
+      #- '.ps1'
+      - '.scf'
+      - '.scr'
+      - '.sys'
+      - '.vbs'
+      - '.vbe'
+      - '.wsf'
+      - '.wsh'
+      - '.dat'
+  condition: selection and filter_path and filter_ext
+falsepositives:
+  - none
+level: medium

@@ -1,0 +1,25 @@
+title: Create file HTA For Lateral Movement
+description: Detects creating HTA files to cache payload files.
+author: nhilnt
+tags:
+  - attack.t1218.005
+  - attack.defense_evasion
+  - attack.execution
+date: 2024/12/25
+status: test
+reference:
+  - https://codewhitesec.blogspot.com/2018/07/lethalhta.html
+logsource:
+  category: file_event
+  product: windows
+  service: sysmon
+detection:
+  selection1:
+    Image|endswith: '\mshta.exe'
+  selection2:
+    TargetFilename|contains: '\appdata\local\microsoft\windows\inetcache\ie\'
+    TargetFilename|endswith: '].hta'
+  condition: selection1 and selection2
+falsepositives:
+  - Unknown
+level: medium

@@ -1,0 +1,43 @@
+title: Suspicious Powershell in Registry Run Keys
+description: Detects potential PowerShell commands or code within registry run keys.
+author: nhilnt
+tags:
+  - attack.t1547.001
+  - attack.persistence
+date: 2024/12/25
+reference:
+  - https://github.com/SigmaHQ/sigma/blob/master/rules/windows/registry/registry_set/registry_set_powershell_in_run_keys.yml
+logsource:
+  category: registry_set
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    TargetObject|contains:
+      - '\software\microsoft\windows\currentversion\run'
+      - '\software\wow6432node\microsoft\windows\currentversion\run'
+    Details|contains:
+      - 'powershell'
+      - 'pwsh '
+      - 'frombase64string'
+      - '.downloadfile('
+      - '.downloadstring('
+      - '-w hidden '
+      - '-w 1 '
+      - '-windowstyle hidden'
+      - '-window hidden'
+      - '-nop '
+      - '-encodedcommand '
+      - '-executionpolicy bypass'
+      - 'invoke-expression'
+      - 'iex ('
+      - 'invoke-command'
+      - 'icm-'
+      - 'invoke-webrequest'
+      - 'iwr '
+      - '-noni '
+      - '-noninteractive '
+  condition: selection
+falsepositives:
+  - none
+level: high

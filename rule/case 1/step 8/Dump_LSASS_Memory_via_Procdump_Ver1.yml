@@ -1,0 +1,38 @@
+title: Dump LSASS Memory via Procdump 
+description: Detects lsass memory dump attack through Procdump tool.
+author: nhilnt
+tags:
+  - attack.t1003.001
+  - attack.t1003.003
+  - attack.credential_access
+date: 2024/12/21
+status: test
+reference:
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1003.001/T1003.001.md#atomic-test-1---dump-lsassexe-memory-using-procdump 
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    CommandLine|contains: ' lsass'
+  filter:
+    CommandLine|contains:
+      - ' -ma '
+      - ' -mm '
+      - ' -mt '
+      - ' -mp '
+      - ' -mc '
+      - ' -mk '
+      - ' -md '
+      - ' /ma '
+      - ' /mm '
+      - ' /mt '
+      - ' /mp '
+      - ' /md '
+      - ' /mc '
+      - ' /mk '
+  condition: selection and filter
+falsepositives:
+  - none
+level: high

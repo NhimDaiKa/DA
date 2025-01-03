@@ -1,0 +1,29 @@
+title: Suspicious Rundll32 Script In CommandLine
+description: Detects suspicious process related to rundll32 based on arguments
+author: nhilnt
+tags:
+    - attack.defense_evasion 
+    - attack.t1218.011
+date: 2024/12/25
+status: test
+reference:
+    - https://github.com/SigmaHQ/sigma/blob/d906eb049714237d965c63bb45bd7cb0e0176d6f/rules/windows/process_creation/proc_creation_win_rundll32_script_run.yml#L7 
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        Image|endswith: '\rundll32.exe'
+    filter1:
+        CommandLine|contains:
+            - 'mshtml,runhtmlapplication'
+            - 'mshtml,#135'
+    filter2:
+        CommandLine|contains:
+            - 'javascript:'
+            - 'vbscript:'
+    condition: selection and all of filter*
+falsepositives:
+    - Unknown
+level: medium
+version: 1

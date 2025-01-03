@@ -1,0 +1,22 @@
+title: Archive Data via Powershell in Windows
+description: Detects PowerShell scripts that make use of the Compress-Archive Cmdlet in order to compress folders and files for exfiltration.
+author: nhilnt
+tags:
+  - attack.t1074.001
+  - attack.collection
+date: 2024/12/21
+status: test
+reference:
+  - https://github.com/SigmaHQ/sigma/blob/master/rules/windows/powershell/powershell_classic/posh_pc_susp_zip_compress.yml
+logsource:
+  category: ps_script
+  product: windows
+  service: powershell
+detection:
+  selection:
+    Message|contains:
+      - 'Script *C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1*'
+  condition: selection
+falsepositives:
+  - unknown
+level: medium

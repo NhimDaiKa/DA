@@ -1,0 +1,28 @@
+title: Remotely Hosted HTA File Executed Via Mshta.EXE
+status: test
+description: Detects execution of the "mshta" utility with an argument containing the "http" keyword, which could indicate that an attacker is executing a remotely hosted malicious hta file
+references:
+    - https://www.trendmicro.com/en_us/research/22/e/avoslocker-ransomware-variant-abuses-driver-file-to-disable-anti-Virus-scans-log4shell.html
+author: nhilnt
+date: 2022/08/08
+modified: 2024/12/18
+tags:
+    - attack.defense_evasion
+    - attack.execution
+    - attack.t1218.005
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_img:
+        - Image|endswith: '\mshta.exe'
+        - OriginalFileName: 'MSHTA.EXE'
+    selection_cli:
+        CommandLine|contains:
+            - 'http://'
+            - 'https://'
+            - 'ftp://'
+    condition: all of selection_*
+falsepositives:
+    - Unknown
+level: high

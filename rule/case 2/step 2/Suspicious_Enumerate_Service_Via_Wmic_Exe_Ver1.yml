@@ -1,0 +1,25 @@
+title: Suspicious Enumerate Service Via Wmic Exe
+description: Detects the usage of wmic.exe to enumerate service.
+author: nhilnt
+tags:
+  - attack.t1007
+  - attack.discovery
+date: 2024/12/25
+status: test
+reference:
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    Image|endswith: '\wmic.exe'
+    CommandLine|contains: ' service '
+    CommandLine|contains|all:
+      - 'displayname'
+      - 'pathname'
+      - 'startmode'
+  condition: selection
+falsepositives:
+  - unknown
+level: medium

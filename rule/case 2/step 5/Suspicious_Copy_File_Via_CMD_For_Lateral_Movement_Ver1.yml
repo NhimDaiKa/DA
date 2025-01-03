@@ -1,0 +1,22 @@
+title: Suspicious Copy File Via CMD For Lateral Movement
+description: Detects the usage of copy commandline via cmd, adversaries may transfer tools or other files between systems in a compromised environment.
+author: nhilnt
+tags:
+  - attack.t1570
+  - attack.lateral_movement
+date: 2024/12/28
+status: test
+reference:
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    Image|endswith: '\cmd.exe'
+    CommandLine|contains|all:
+      - ' /c copy '
+  condition: selection
+falsepositives:
+  - none
+level: medium

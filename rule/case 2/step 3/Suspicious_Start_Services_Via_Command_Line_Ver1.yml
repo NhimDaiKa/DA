@@ -1,0 +1,22 @@
+title: Suspicious Start Services Via Command Line
+description: Detects to start a specific service on a Windows system via a command-line.
+author: nhilnt
+tags:
+  - attack.t1569.002
+  - attack.execution
+date: 2024/12/25
+status: test
+reference:
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    Image|endswith:
+      - '\sc.exe'
+    CommandLine|contains: ' start '
+  condition: selection
+falsepositives:
+  - none
+level: medium

@@ -1,0 +1,40 @@
+title: Cscript or Wscript Uncommon Script Extension Execution 
+description: Detects Wscript/Cscript executing a file with an uncommon (i.e. non-script) extension.
+author: nhilnt
+tags:
+  - attack.t1059.005
+  - attack.t1059.007
+  - attack.execution
+date: 2024/12/25
+status: test
+reference:
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    - Image|endswith:
+      - '\wscript.exe'
+      - '\cscript.exe'
+    - OriginalFileName|startswith:
+      - 'cscript.exe'
+      - 'wscript.exe'
+  filter:
+    CommandLine|contains:
+      - '.csv'
+      - '.dat'
+      - '.doc'
+      - '.gif'
+      - '.jpeg'
+      - '.jpg'
+      - '.png'
+      - '.ppt'
+      - '.txt'
+      - '.xls'
+      - '.xml'
+      - '.vbs'
+  condition: selection and filter
+falsepositives:
+  - none
+level: medium

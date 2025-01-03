@@ -1,0 +1,29 @@
+title: Boot Or Logon Autostart Execution Via Startup Folder
+description: Detects placing in and running from the startup folder to maintain persistence, adversaries may cause the program referenced to be executed when a user logs in.
+author: nhilnt
+tags:
+  - attack.t1547.001
+  - attack.persistence
+date: 2024/12/25
+status: test
+reference:
+  - https://unit42.paloaltonetworks.com/unit-42-title-gamaredon-group-toolset-evolution/
+  - https://unit42.paloaltonetworks.com/unit42-new-threat-actor-group-darkhydrus-targets-middle-east-government/
+  - https://telefonicatech.com/blog/snip3-investigacion-malware
+  - https://www.proofpoint.com/us/blog/threat-insight/charting-ta2541s-flight
+logsource:
+  category: file_event
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    EventID: '11'
+    TargetFilename|contains: '\microsoft\windows\start menu\programs\startup\'
+  filter:
+    TargetFilename|endswith|all:
+      - '\desktop.in'
+      - '\desktop.ini'
+  condition: selection and not filter
+falsepositives:
+  - unknown
+level: medium

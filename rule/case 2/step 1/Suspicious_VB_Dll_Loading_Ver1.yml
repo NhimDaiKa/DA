@@ -1,0 +1,37 @@
+title: Suspicious VB Dll Loading
+description: Detects vbscript.dll will be loaded when visual basic is compile.
+author: nhilnt
+tags:
+  - attack.t1059.005
+  - attack.credential_access
+  - attack.discovery
+date: 2024/12/25
+status: test
+reference:
+  - https://github.com/redcanaryco/atomic-red-team/blob/88d1fbb51d90a84b701e29c726009b5bc03ab600/atomics/T1059.005/T1059.005.md
+logsource:
+  category: image_load
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    ImageLoaded|endswith: '\vbscript.dll'
+    Image|endswith:
+      - '\cmd.exe'
+      - '\wscript.exe'
+      - '\cscript.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+      - '\mshta.exe'
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\powershell_ise.exe'
+      - '\wmiprvse.exe'
+      - '\wmic.exe'
+      - '\wsmprovhost.exe'
+      - '\winrshost.exe'
+      - '\svchost.exe'
+  condition: selection
+falsepositives:
+  - none
+level: medium

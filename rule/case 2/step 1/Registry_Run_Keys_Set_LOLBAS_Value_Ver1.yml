@@ -1,0 +1,146 @@
+title: Registry Run Keys Set LOLBAS Value
+description: Detects adding an entry to the run keys in the registry to achieve persistence , adversaries may cause the program referenced to be executed when a user logs in.
+author: nhilnt
+tags:
+  - attack.t1547.001
+  - attack.persistence
+date: 2024/12/25
+status: test
+reference:
+  - https://securelist.com/sofacy-apt-hits-high-profile-targets-with-updated-toolset/72924/
+logsource:
+  category: registry_set
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    TargetObject|contains:
+      - '\software\microsoft\windows\currentversion\run'
+      - '\software\wow6432node\microsoft\windows\currentversion\run'
+  filter_value1:
+    - Details|contains:
+      - 'wscript.exe'
+      - 'cscript.exe'
+      - '\at.exe'
+      - 'atbroker.exe'
+      - 'bash.exe'
+      - 'bitsadmin'
+      - 'certutil.exe'
+      - 'cmdkey.exe'
+      - 'cmstp.exe'
+      - '\control.exe'
+      - 'csc.exe'
+      - 'dfsvc.exe'
+      - 'diskshadow.exe'
+      - 'esentutl.exe'
+      - 'eventvwr.exe'
+      - 'extexport.exe'
+      - 'extrac32.exe'
+      - 'findstr.exe'
+      - 'forfiles.exe'
+      - 'ftp.exe'
+      - 'gpscript.exe'
+      - 'hh.exe'
+      - 'ie4uinit.exe'
+      - 'ieexec.exe'
+      - 'infdefaultinstall.exe'
+      - 'installutil.exe'
+      - 'jsc.exe'
+      - 'makecab.exe'
+      - 'mavinject.exe'
+      - 'microsoft.workflow.r.exe'
+      - 'mmc.exe'
+      - 'msbuild.exe'
+      - 'msconfig.exe'
+      - 'msdt.exe'
+      - 'mshta.exe'
+      - 'msiexec.exe'
+      - 'odbcconf.exe'
+      - 'pcalua.exe'
+      - 'pcwrun.exe'
+      - 'presentationhost.exe'
+      - 'print.exe'
+      - 'reg.exe'
+      - 'regasm.exe'
+      - 'regedit.exe'
+      - 'register-cimprovider.exe'
+      - 'regsvcs.exe'
+      - 'regsvr32.exe'
+      - 'replace.exe'
+      - 'rpcping.exe'
+      - 'runonce.exe'
+      - 'runscripthelper.exe'
+      - 'sc.exe'
+      - 'schtasks.exe'
+      - 'scriptrunner.exe'
+      - 'syncappvpublishingserver.exe'
+      - 'tttracer.exe'
+      - 'verclsid.exe'
+      - 'wab.exe'
+      - 'wmic.exe'
+      - 'wsreset.exe'
+      - 'xwizard.exe'
+      - 'appvlp.exe'
+      - 'bginfo.exe'
+      - 'cdb.exe'
+      - 'csi.exe'
+      - 'devtoolslauncher.exe'
+      - 'dnx.exe'
+      - 'dxcap.exe'
+      - 'excel.exe'
+      - 'mftrace.exe'
+      - 'msdeploy.exe'
+      - 'msxsl.exe'
+      - 'powerpnt.exe'
+      - 'rcsi.exe'
+      - 'sqler.exe'
+      - 'sqlps.exe'
+      - 'sqltoolsps.exe'
+      - 'squirrel.exe'
+      - '\te.exe'
+      - 'tracker.exe'
+      - '\update.exe'
+      - 'vsjitdebugger.exe'
+      - 'winword.exe'
+      - 'wsl.exe'
+      - 'comsvcs.dll'
+      - 'ieadvpack.dll'
+      - 'ieaframe.dll'
+      - 'mshtml.dll'
+      - 'pcwutl.dll'
+      - 'setupapi.dll'
+      - 'shdocvw.dll'
+      - 'shell32.dll'
+      - 'syssetup.dll'
+      - 'url.dll'
+      - 'zipfldr.dll'
+      - 'cl_mutexverifiers.ps1'
+      - 'cl_invocation.ps1'
+      - 'manage-bde.wsf'
+      - 'pubprn.vbs'
+      - 'slmgr.vbs'
+      - 'syncappvpublishingserver.vbs'
+      - 'winrm.vbs'
+      - 'pester.bat'
+    - Details|startswith:
+      - 'at.exe'
+      - 'control.exe'
+      - 'te.exe'
+      - 'update.exe'
+  filter_value2:
+    Details|contains: 'rundll32.exe'
+  filter_value3:
+    Details|contains: 'advpack.dll'
+  filter_exp_1:
+    Details|contains|all: 
+      - 'rundll32.exe c:\windows\system32\advpack.dll,delnoderundll32'
+      - 'ixp00'
+      - '.tmp.'
+  filter_exp_2:
+    Details|contains:
+      - '\appdata\local\temp' 
+      - '\windows\temp'
+  condition: selection and (filter_value1 or ((filter_value2 or filter_value3) and not all of filter_exp*))
+falsepositives:
+  - Unknown
+level: high

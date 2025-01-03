@@ -1,0 +1,27 @@
+title: WMI Execute Local Process
+description: Detects the usage of Windows Management Instrumentation (WMI) to execute a process on the local host, adversaries may execute malicious commands and payloads.
+author: nhilnt
+tags:
+  - attack.t1047
+  - attack.execution
+date: 2024/12/28
+status: test
+reference:
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1047/T1047.md
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection:
+    Image|endswith:
+      - '\wmic.exe'
+      - '\wmiprvse.exe'
+    CommandLine|contains|all:
+      - ' process '
+      - ' call '
+      - ' create '
+  condition: selection
+falsepositives:
+  - none
+level: medium

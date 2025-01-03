@@ -1,0 +1,23 @@
+title: Windows Screen Capture with CopyFromScreen
+description: Adversaries may attempt to take screen captures of the desktop to gather information over the course of an operation. Screen capturing functionality may be included as a feature of a remote access tool used in post-compromise operations.
+author: nhilnt
+tags:
+  - attack.T1113
+  - attack.execution
+date: 2024/12/21
+status: test
+reference:
+  - https://detection.fyi/sigmahq/sigma/windows/powershell/powershell_script/posh_ps_capture_screenshots/
+logsource:
+  category: ps_script
+  product: windows
+  service: powershell
+  definition: Script Block Logging must be enabled
+detection:
+  selection:
+    Message|contains:
+      - 'copyfromscreen'
+  condition: selection
+falsepositives:
+  - unknown
+level: medium

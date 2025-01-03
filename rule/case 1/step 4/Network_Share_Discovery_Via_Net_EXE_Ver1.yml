@@ -1,0 +1,42 @@
+title: Network Share Discovery Via Net EXE
+description: Detects using net utility for discovering folders and drivers shared on remote systems.
+author: nhilnt
+tags:
+  - attack.t1135
+  - attack.discovery
+date: 2024/12/25
+status: test
+reference:
+logsource:
+  category: process_creation
+  product: windows
+  service: sysmon
+detection:
+  selection_tpp1:
+    - Image|endswith: '\net1.exe'
+    - OrginalFileName: 'net1.exe'
+    - Description: 'Net Command'
+  filter_exp1:
+    ParentImage|endswith: \net.exe
+  selection_tpp2:
+    - Image|endswith: '\net.exe'
+    - OrginalFileName: 'net.exe'
+  filter_exp12:
+    ParentImage|endswith: '\cmd.exe'
+    ParentCommandLine|contains: 
+      - ' /c '
+      - 'net'
+  selection_tpp3:
+    Image|endswith: '\cmd.exe'
+    CommandLine|contains|all:
+      - ' /c '
+      - 'net'
+  filter_tcl:
+    CommandLine|contains: 
+      - ' share'
+      - ' view'
+      - ' /delete'
+  condition: ((((selection_tpp1 and not filter_exp1) or selection_tpp2) and not filter_exp12) or selection_tpp3) and filter_tcl
+falsepositives:
+  - unknown
+level: medium
